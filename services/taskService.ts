@@ -1,8 +1,9 @@
 
 import { Task, TaskStatus, TaskPriority } from '../types';
+import { superadminurl } from './api';
 
-const BASE_URL = 'https://superadmin-532d.onrender.com/api/tasks';
-// const BASE_URL = 'http://localhost:5000/api/tasks';
+// const BASE_URL = 'https://superadmin-532d.onrender.com/api/tasks';
+const BASE_URL = `${superadminurl}/api/tasks`;
 
 const getHeaders = () => ({
   'Content-Type': 'application/json',

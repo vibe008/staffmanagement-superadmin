@@ -5,6 +5,7 @@ import { X, Save, Loader2, AlertCircle, Type, AlignLeft, Flag, Ticket, Info, Tag
 import { toast } from 'react-toastify';
 import { Input, Select } from './UI';
 import { convertContactToTicket } from '../services/contactService';
+import { superadminurl } from '@/services/api';
 
 interface TicketFormProps {
   chat?: {
@@ -61,7 +62,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ chat, contact, onClose, 
           userType: userType     
         });
       } else if (chat) {
-        const res = await fetch("http://localhost:5000/api/ticket/convert", {
+        const res = await fetch(`${superadminurl}/api/ticket/convert`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -1,7 +1,8 @@
 
 import { io, Socket } from 'socket.io-client';
+import { chaturl } from './services/api';
 
-const CHAT_URL = "http://localhost:5001";
+const CHAT_URL = chaturl;
 
 export class SocketService {
   private static instance: SocketService;

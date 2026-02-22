@@ -10,6 +10,7 @@ import {
 import { toast } from 'react-toastify';
 import { socketService } from '../socket';
 import { ChatMessage, MessageType } from '../types';
+import { chaturl } from '@/services/api';
 
 interface Chat {
   id: string;
@@ -95,7 +96,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://localhost:5001/api/upload', {
+      const response = await fetch(`${chaturl}/api/upload`, {
         method: 'POST',
         body: formData,
       });

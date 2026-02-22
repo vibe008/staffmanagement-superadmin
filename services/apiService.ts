@@ -1,8 +1,8 @@
 
 import { Department, ApiResponse, LoginResponse } from '../types';
+import { superadminurl } from './api';
 
-// const BASE_URL = 'http://localhost:5000/api';
-const BASE_URL = 'https://superadmin-532d.onrender.com/api';
+const BASE_URL = `${superadminurl}/api`;
 
 const getHeaders = () => ({
   'Content-Type': 'application/json',

@@ -1,10 +1,9 @@
 
 import { ContactSupport } from '../types';
+import { superadminurl } from './api';
 
-// const API_BASE = 'http://localhost:5000/api';
-const API_BASE = 'https://superadmin-532d.onrender.com/api';
-// const TICKET_BASE_URL = 'http://localhost:5000/api';
-const TICKET_BASE_URL = 'https://superadmin-532d.onrender.com/api';
+const API_BASE = `${superadminurl}/api`;
+const TICKET_BASE_URL = `${superadminurl}/api/ticket`;
 
 const getHeaders = () => ({
   'Authorization': `Bearer ${sessionStorage.getItem('token')}`

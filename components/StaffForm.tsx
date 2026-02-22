@@ -12,6 +12,7 @@ import { Department, Staff, Role, WorkExperience, Address, Designation } from '.
 import { Input, Select } from './UI';
 import { setupStaffAuth, fetchStaffById } from '../services/staffService';
 import { fetchHierarchy } from '../services/departmentService';
+import { superadminurl } from '@/services/api';
 
 interface StaffFormProps {
   departments: Department[];
@@ -255,7 +256,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ departments: initialDepart
     });
 
     try {
-      const url = isEditMode ? `http://localhost:5000/api/staff/${staffId}` : `http://localhost:5000/api/staff`;
+      const url = isEditMode ? `${superadminurl}/api/staff/${staffId}` : `${superadminurl}/api/staff`;
       const method = isEditMode ? 'PUT' : 'POST';
       
       const res = await fetch(url, {

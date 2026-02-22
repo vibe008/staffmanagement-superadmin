@@ -1,10 +1,11 @@
 
 import { ApiResponse, Ticket, TicketStatus } from '../types';
+import { chaturl, superadminurl } from './api';
 
-const BASE_URL = 'https://superadmin-532d.onrender.com/api/ticket';
-// const BASE_URL = 'http://localhost:5000/api/ticket';
-const CHAT_INTERNAL_URL = 'https://superadmin-532d.onrender.com/api/internal/chat';
-// const CHAT_INTERNAL_URL = 'http://localhost:5001/api/internal/chat';
+// const BASE_URL = 'https://superadmin-532d.onrender.com/api/ticket';
+const BASE_URL = `${superadminurl}/api/ticket`;
+// const CHAT_INTERNAL_URL = 'https://superadmin-532d.onrender.com/api/internal/chat';
+const CHAT_INTERNAL_URL = `${chaturl}/api/internal/chat`;
 
 const getHeaders = () => ({
   'Content-Type': 'application/json',
