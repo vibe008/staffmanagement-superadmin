@@ -1,0 +1,5 @@
+{
+  "name": "Corporate Auth Portal",
+  "description": "A sophisticated login system with department-aware role management, featuring dynamic sub-department filtering, dark mode support with custom branding, and elegant animations.",
+  "requestFramePermissions": []
+}
