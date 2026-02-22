@@ -1,8 +1,10 @@
 
 import { ContactSupport } from '../types';
 
-const API_BASE = 'http://localhost:5000/api';
-const TICKET_BASE_URL = 'http://localhost:5000/api';
+// const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://superadmin-532d.onrender.com/api';
+// const TICKET_BASE_URL = 'http://localhost:5000/api';
+const TICKET_BASE_URL = 'https://superadmin-532d.onrender.com/api';
 
 const getHeaders = () => ({
   'Authorization': `Bearer ${sessionStorage.getItem('token')}`

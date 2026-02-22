@@ -1,7 +1,8 @@
 // services/departmentService.ts
 import { Department, SubDepartment, Designation, ApiResponse } from '../types';
 
-const BASE_URL = 'http://localhost:5000/api/department';
+const BASE_URL = 'https://superadmin-532d.onrender.com/api/department';
+// const BASE_URL = 'http://localhost:5000/api/department';
 
 const getHeaders = () => ({
   'Content-Type': 'application/json',

@@ -1,7 +1,8 @@
 
 import { SystemPermission, ApiResponse, PermissionGroupResponse } from '../types';
 
-const BASE_URL = 'http://localhost:5000/api/permission';
+const BASE_URL = 'https://superadmin-532d.onrender.com/api/permission';
+// const BASE_URL = 'http://localhost:5000/api/permission';
 
 const getHeaders = () => ({
   'Content-Type': 'application/json',
