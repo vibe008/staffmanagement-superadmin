@@ -1,6 +1,6 @@
 
 import { Department, ApiResponse, LoginResponse } from '../types';
-import { superadminurl } from './api';
+import { superadminurl } from '../api';
 
 const BASE_URL = `${superadminurl}/api`;
 

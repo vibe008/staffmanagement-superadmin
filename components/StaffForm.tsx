@@ -12,7 +12,7 @@ import { Department, Staff, Role, WorkExperience, Address, Designation } from '.
 import { Input, Select } from './UI';
 import { setupStaffAuth, fetchStaffById } from '../services/staffService';
 import { fetchHierarchy } from '../services/departmentService';
-import { superadminurl } from '@/services/api';
+import { superadminurl } from '../api';
 
 interface StaffFormProps {
   departments: Department[];
@@ -153,7 +153,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ departments: initialDepart
             country: country || prev[type === 'current' ? 'currentAddress' : 'permanentAddress'].country,
           }
         }));
-        // toast.success(`Location resolved for ${pincode}`, { icon: <Sparkles className="text-brand" size={16}/> });
+        toast.success(`Location resolved for ${pincode}`, { icon: <Sparkles className="text-brand" size={16}/> });
       }
     } catch (error) {
       console.warn('Pincode lookup service unavailable');
@@ -163,17 +163,33 @@ export const StaffForm: React.FC<StaffFormProps> = ({ departments: initialDepart
   const selectedDept = departments.find(d => d.id === formData.departmentId);
   const selectedSub = selectedDept?.subDepartments.find(s => s.id === formData.subDepartmentId);
 
-  const sanitizeInput = (val: string) => val.replace(/[%$*+@#]/g, '');
+  const sanitizeName = (val: string) => val.replace(/[^a-zA-Z\s]/g, '').slice(0, 100);
+  const sanitizeEmail = (val: string) => val.slice(0, 50);
+  const sanitizeVehicle = (val: string) => val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 50);
+  const sanitizeAddress = (val: string) => val.slice(0, 150);
+  
+  const validateIFSC = (ifsc: string) => {
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    return ifscRegex.test(ifsc);
+  };
 
   const handleInputChange = (field: string, value: any) => {
-    if (typeof value === 'string' && ['name', 'fatherName', 'motherName', 'healthIssueDescription'].includes(field)) {
-      value = sanitizeInput(value);
+    if (typeof value === 'string') {
+      if (['name', 'fatherName', 'motherName'].includes(field)) {
+        value = sanitizeName(value);
+      } else if (field === 'email') {
+        value = sanitizeEmail(value);
+      } else if (field === 'vehicleNumber') {
+        value = sanitizeVehicle(value);
+      } else if (field === 'healthIssueDescription') {
+        value = value.slice(0, 200);
+      }
     }
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleAddressChange = (type: 'current' | 'permanent', field: string, value: string) => {
-    const sanitized = sanitizeInput(value);
+    const sanitized = sanitizeAddress(value);
     setFormData(prev => ({
       ...prev,
       [type === 'current' ? 'currentAddress' : 'permanentAddress']: {
@@ -188,9 +204,16 @@ export const StaffForm: React.FC<StaffFormProps> = ({ departments: initialDepart
   };
 
   const handleBankChange = (field: string, value: string) => {
+    let sanitized = value;
+    if (field === 'ifscCode') {
+      sanitized = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
+    } else {
+      sanitized = value.slice(0, 100);
+    }
+    
     setFormData(prev => ({
       ...prev,
-      bankDetails: { ...prev.bankDetails, [field]: sanitizeInput(value) }
+      bankDetails: { ...prev.bankDetails, [field]: sanitized }
     }));
   };
 
@@ -226,7 +249,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ departments: initialDepart
 
   const updateExperience = (idx: number, field: keyof WorkExperience, value: string) => {
     const next = [...experiences];
-    next[idx] = { ...next[idx], [field]: sanitizeInput(value) };
+    next[idx] = { ...next[idx], [field]: value.slice(0, 100) };
     setExperiences(next);
   };
 
@@ -237,6 +260,11 @@ export const StaffForm: React.FC<StaffFormProps> = ({ departments: initialDepart
     if (formData.adharNumber && formData.adharNumber.length !== 12) {
       setLoading(false);
       return toast.error('Aadhaar number must be exactly 12 digits');
+    }
+
+    if (formData.bankDetails.ifscCode && !validateIFSC(formData.bankDetails.ifscCode)) {
+      setLoading(false);
+      return toast.error('Invalid IFSC Format. Example: SBIN0001234 (4 letters, 0, 6 alphanumeric)');
     }
 
     const data = new FormData();
@@ -268,13 +296,8 @@ export const StaffForm: React.FC<StaffFormProps> = ({ departments: initialDepart
       const result = await res.json();
       if (!res.ok) throw new Error(result.message || 'Submission failure');
       
-      if (!isEditMode) {
-        setNewStaffId(result.staff.id);
-        setShowAuthSetup(true);
-      } else {
-        toast.success('Resource synchronized');
-        onSuccess();
-      }
+      toast.success(isEditMode ? 'Resource synchronized' : 'Asset enrolled successfully');
+      onSuccess();
     } catch (err: any) {
       toast.error(err.message || 'Critical system failure');
     } finally {
@@ -419,7 +442,14 @@ export const StaffForm: React.FC<StaffFormProps> = ({ departments: initialDepart
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input label="Bank Name *" icon={<Landmark size={18}/>} value={formData.bankDetails.bankName} onChange={e => handleBankChange('bankName', e.target.value)} required />
             <Input label="Account Holder Name *" icon={<User size={18}/>} value={formData.bankDetails.accountHolderName} onChange={e => handleBankChange('accountHolderName', e.target.value)} required />
-            <Input label="IFSC Code *" icon={<Shield size={18}/>} value={formData.bankDetails.ifscCode} onChange={e => handleBankChange('ifscCode', e.target.value.toUpperCase())} required />
+            <Input 
+              label="IFSC Code *" 
+              icon={<Shield size={18}/>} 
+              value={formData.bankDetails.ifscCode} 
+              onChange={e => handleBankChange('ifscCode', e.target.value)} 
+              placeholder="e.g. SBIN0001234"
+              required 
+            />
             <Input label="Bank Account No *" icon={<CreditCard size={18}/>} value={formData.bankDetails.accountNumber} onChange={e => handleBankChange('accountNumber', e.target.value.replace(/\D/g, ''))} required />
           </div>
         </section>
@@ -486,62 +516,6 @@ export const StaffForm: React.FC<StaffFormProps> = ({ departments: initialDepart
           {isEditMode ? 'Commit Resource Changes' : 'Execute Asset Enrollment'}
         </button>
       </form>
-
-      <AnimatePresence>
-        {showAuthSetup && newStaffId && (
-          <AuthSetupModal staffId={newStaffId} onComplete={() => { setShowAuthSetup(false); onSuccess(); }} onClose={() => { setShowAuthSetup(false); onSuccess(); }} />
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-const AuthSetupModal = ({ staffId, onComplete, onClose }: { staffId: string, onComplete: () => void, onClose: () => void }) => {
-  const [loading, setLoading] = useState(false);
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('STAFF');
-
-  const handleSetup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await setupStaffAuth(staffId, { password, role, permissions: [] });
-      toast.success('Security Protocol Established');
-      onComplete();
-    } catch (err: any) {
-      toast.error(err.message || 'Verification failure');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" />
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white dark:bg-darkCard w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
-        <div className="p-10 text-center">
-          <div className="w-20 h-20 bg-brand rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-brand/40">
-            <ShieldCheck className="w-12 h-12 text-slate-900" />
-          </div>
-          <h3 className="text-3xl font-black mb-2">Security Handshake</h3>
-          <p className="text-slate-500 font-medium mb-8">Deploy operational clearance to activate asset.</p>
-          <form onSubmit={handleSetup} className="space-y-6">
-            <Input label="Operational Key" type="password" icon={<Lock size={18}/>} value={password} onChange={e => setPassword(e.target.value)} required />
-            <Select label="Operational Tier" icon={<Shield size={18}/>} value={role} onChange={e => setRole(e.target.value as Role)} required>
-               <option value="STAFF">STAFF</option>
-               <option value="SUPPORT">SUPPORT</option>
-               <option value="ADMIN">ADMIN</option>
-               <option value="SUPERADMIN">SUPERADMIN</option>
-            </Select>
-            <div className="flex gap-4 pt-4">
-              <button type="button" onClick={onClose} className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest">Later</button>
-              <button type="submit" disabled={loading} className="flex-[2] bg-brand text-slate-900 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl">
-                {loading ? <Loader2 className="animate-spin w-4 h-4" /> : <ShieldCheck size={18} />} Deploy
-              </button>
-            </div>
-          </form>
-        </div>
-      </motion.div>
     </div>
   );
 };

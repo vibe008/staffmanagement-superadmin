@@ -1,6 +1,6 @@
 
 import { ApiResponse, Ticket, TicketStatus } from '../types';
-import { chaturl, superadminurl } from './api';
+import { chaturl, superadminurl } from '../api';
 
 // const BASE_URL = 'https://superadmin-532d.onrender.com/api/ticket';
 const BASE_URL = `${superadminurl}/api/ticket`;

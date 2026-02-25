@@ -1,5 +1,5 @@
 import { Staff, Role } from '../types';
-import { superadminurl } from './api';
+import { superadminurl } from '../api';
 
 // const BASE_URL = 'https://superadmin-532d.onrender.com/api/staff';
 const BASE_URL = `${superadminurl}/api/staff`;

@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
-import { Department, AppView, Staff, User, ChatMessage, MessageType } from './types';
+import { Department, AppView, Staff, User, ChatMessage, MessageType, Ticket } from './types';
 import { fetchDepartments, logoutUser } from './services/apiService';
+import { superadminurl } from './api';
 import { ThemeToggle } from './components/ThemeToggle';
 import { Sidebar } from './components/Sidebar';
 import { StaffManager } from './components/StaffManager';
@@ -22,18 +24,19 @@ import { DepartmentManager } from './components/DepartmentManager';
 import { SystemPermissionManager } from './components/SystemPermissionManager';
 import { socketService } from './socket';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [currentView, setCurrentView] = useState<AppView>('home');
   
   // Modal & Selection States
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
+  const [sourceTicket, setSourceTicket] = useState<Ticket | null>(null);
   const [showTicketForm, setShowTicketForm] = useState(false);
   const [ticketSource, setTicketSource] = useState<{ chat?: any, contact?: any } | null>(null);
 
@@ -50,7 +53,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (selectedChatId) {
-      // Emit joinChat to ensure staff is in the room (requires backend support)
       socketService.emit("joinChat", { chatId: selectedChatId });
       
       setChats(prev => prev.map(chat => {
@@ -87,7 +89,9 @@ const App: React.FC = () => {
       }
     };
     init();
+  }, []);
 
+  useEffect(() => {
     // Socket Listeners
     const handleActiveChats = (data: any) => {
       setChats(data);
@@ -119,21 +123,14 @@ const App: React.FC = () => {
 
       if (chatId === selectedChatId) {
         setMessages(prev => {
-          // 1. Deduplicate by ID
           if (prev.some(m => m.id === normalizedMessage.id)) return prev;
-          
-          // 2. Filter out the optimistic version of this message if it exists
-          // We match by content and senderType, assuming it's the same message
           const filtered = prev.filter(m => {
             const isOptimistic = m.id?.toString().startsWith('opt-');
             const contentMatch = m.content === normalizedMessage.content;
             const senderMatch = m.senderType === normalizedMessage.senderType;
-            
-            // If it's an optimistic message from me with same content, remove it
             if (isOptimistic && contentMatch && senderMatch) return false;
             return true;
           });
-
           return [...filtered, normalizedMessage];
         });
         socketService.emit("markAsRead", { chatId });
@@ -206,7 +203,7 @@ const App: React.FC = () => {
       socketService.off("unreadCountUpdated", handleUnreadCountUpdated);
       socketService.off("chatRemoved", handleChatRemoved);
     };
-  }, [selectedChatId, currentView]);
+  }, [selectedChatId]);
 
   const handleLogout = async () => {
     await logoutUser();
@@ -214,14 +211,12 @@ const App: React.FC = () => {
     sessionStorage.clear();
     setIsLoggedIn(false);
     setUser(null);
-    setCurrentView('home');
+    navigate('/login');
     toast.info('Securely signed out');
   };
 
   const handleSendMessage = (content: string, type: MessageType) => {
     if (!selectedChatId || !user) return;
-
-    // Optimistic Update
     const optimisticMessage: ChatMessage = {
       id: `opt-${Date.now()}`,
       content: content,
@@ -230,9 +225,7 @@ const App: React.FC = () => {
       senderType: 'staff',
       timestamp: new Date().toISOString()
     };
-
     setMessages(prev => [...prev, optimisticMessage]);
-
     socketService.emit("staffSendMessage", {
       chatId: selectedChatId,
       message: content,
@@ -244,72 +237,18 @@ const App: React.FC = () => {
     socketService.emit("staffEndChat", { chatId });
   };
 
-  const renderCurrentScreen = () => {
-    switch (currentView) {
-      case 'home': return <Dashboard />;
-      case 'hr': 
-        return <StaffManager 
-          departments={departments} 
-          onEdit={(staff) => { setSelectedStaff(staff); setCurrentView('edit_staff'); }} 
-          onAdd={() => { setSelectedStaff(null); setCurrentView('create_staff'); }}
-          onManagePermissions={(staff) => { setSelectedStaff(staff); }}
-          selectedStaffForPermissions={selectedStaff} 
-          onClosePermissions={() => setSelectedStaff(null)}
-          user={user}
-        />;
-      case 'create_staff':
-      case 'edit_staff':
-        return <StaffForm 
-          departments={departments} 
-          staffId={selectedStaff?.id || null} 
-          onBack={() => { setSelectedStaff(null); setCurrentView('hr'); }} 
-          onSuccess={() => { setSelectedStaff(null); setCurrentView('hr'); }} 
-        />;
-      case 'department_manager':
-        return <DepartmentManager />;
-      case 'system_permissions':
-        return <SystemPermissionManager />;
-      case 'task_list':
-      case 'my_tasks':
-        return selectedTaskId ? (
-          <TaskDetails 
-            taskId={selectedTaskId} 
-            onBack={() => setSelectedTaskId(null)} 
-            onDeleted={() => { setSelectedTaskId(null); }}
-            onEdit={(task) => { setEditingTask(task); setShowTaskForm(true); }}
-            user={user}
-          />
-        ) : (
-          <TaskManager 
-            viewMode={currentView === 'task_list' ? 'all' : 'my'} 
-            departments={departments}
-            onCreateNew={() => { setEditingTask(null); setShowTaskForm(true); }}
-            onViewDetails={setSelectedTaskId}
-            onEdit={(task) => { setEditingTask(task); setShowTaskForm(true); }}
-            user={user}
-          />
-        );
-      case 'live_chat':
-        return <LiveChat 
-          chats={chats}
-          selectedChatId={selectedChatId}
-          onSelectChat={setSelectedChatId}
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          onEndChat={handleEndChat}
-          onCreateTicket={() => {
-            const chat = chats.find(c => c.id === selectedChatId);
-            setTicketSource({ chat });
-            setShowTicketForm(true);
-          }}
-          user={user}
-        />;
-      case 'tickets':
-        return <TicketManager onConvertToTask={(ticket) => { setEditingTask(ticket); setShowTaskForm(true); }} user={user} />;
-      case 'contact_support_list':
-        return <ContactSupportManager onConvertToTicket={(contact) => { setTicketSource({ contact }); setShowTicketForm(true); }} user={user} />;
-      default: return <Dashboard />;
-    }
+  const getActiveTab = () => {
+    const path = location.pathname;
+    if (path === '/') return 'home';
+    if (path.startsWith('/hr')) return 'hr';
+    if (path === '/departments') return 'department_manager';
+    if (path === '/permissions') return 'system_permissions';
+    if (path === '/tasks/my') return 'my_tasks';
+    if (path.startsWith('/tasks')) return 'task_list';
+    if (path === '/chat') return 'live_chat';
+    if (path === '/tickets') return 'tickets';
+    if (path === '/support-feed') return 'contact_support_list';
+    return 'home';
   };
 
   if (initialLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-darkBg"><Loader2 className="w-12 h-12 text-brand animate-spin" /></div>;
@@ -318,38 +257,131 @@ const App: React.FC = () => {
     <>
       <ToastContainer position="top-right" autoClose={3000} theme="colored" aria-label="Notifications" />
       <AnimatePresence mode="wait">
-        {!isLoggedIn ? (
-          <Login departments={departments} onLoginSuccess={(u, t, ct) => { 
-            sessionStorage.setItem('token', t); 
-            sessionStorage.setItem('user', JSON.stringify(u)); 
-            if (ct) {
-              sessionStorage.setItem('chatToken', ct);
-              socketService.connect(u.id, ct);
-            }
-            setUser(u); 
-            setIsLoggedIn(true); 
-          }} />
-        ) : (
-          <div className="flex min-h-screen bg-slate-50 dark:bg-darkBg">
-            <Sidebar 
-              onLogout={handleLogout} 
-              onNavigate={setCurrentView} 
-              user={user} 
-              activeTab={currentView} 
-              chatUnreadCount={chatUnreadCount}
-            />
-            <main className="flex-1 p-6 lg:p-10 overflow-y-auto custom-scrollbar">
-              <header className="flex items-center justify-between mb-8">
-                {/* Remove title for HR/Permissions as requested for a compact AWS-style UI */}
-                {currentView !== 'hr' && currentView !== 'system_permissions' ? (
-                  <h1 className="text-4xl font-black text-slate-900 dark:text-white capitalize">{currentView.replace(/_/g, ' ')}</h1>
-                ) : <div />}
-                <ThemeToggle />
-              </header>
-              {renderCurrentScreen()}
-            </main>
-          </div>
-        )}
+        <Routes location={location}>
+          {!isLoggedIn ? (
+            <Route path="*" element={
+              <Login departments={departments} onLoginSuccess={(u, t, ct) => { 
+                sessionStorage.setItem('token', t); 
+                sessionStorage.setItem('user', JSON.stringify(u)); 
+                if (ct) {
+                  sessionStorage.setItem('chatToken', ct);
+                  socketService.connect(u.id, ct);
+                }
+                setUser(u); 
+                setIsLoggedIn(true); 
+                navigate('/');
+              }} />
+            } />
+          ) : (
+            <Route path="*" element={
+              <div className="flex min-h-screen bg-slate-50 dark:bg-darkBg">
+                <Sidebar 
+                  onLogout={handleLogout} 
+                  onNavigate={(view) => {
+                    const viewToPath: Record<string, string> = {
+                      'home': '/',
+                      'hr': '/hr',
+                      'create_staff': '/hr/create',
+                      'department_manager': '/departments',
+                      'system_permissions': '/permissions',
+                      'my_tasks': '/tasks/my',
+                      'task_list': '/tasks',
+                      'create_task': '/tasks/create',
+                      'live_chat': '/chat',
+                      'tickets': '/tickets',
+                      'contact_support_list': '/support-feed'
+                    };
+                    if (view === 'create_task') {
+                      setEditingTask(null);
+                      setShowTaskForm(true);
+                    } else {
+                      navigate(viewToPath[view] || '/');
+                    }
+                  }} 
+                  user={user} 
+                  activeTab={getActiveTab() as any} 
+                  chatUnreadCount={chatUnreadCount}
+                />
+                <main className="flex-1 p-6 lg:p-10 overflow-y-auto custom-scrollbar">
+                  <header className="flex items-center justify-between mb-8">
+                    {location.pathname !== '/hr' && location.pathname !== '/permissions' ? (
+                      <h1 className="text-4xl font-black text-slate-900 dark:text-white capitalize">
+                        {location.pathname === '/' ? 'Home' : location.pathname.substring(1).replace(/\//g, ' ').replace(/_/g, ' ')}
+                      </h1>
+                    ) : <div />}
+                    <ThemeToggle />
+                  </header>
+                  
+                  <Routes>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/hr" element={
+                      <StaffManager 
+                        departments={departments} 
+                        onEdit={(staff) => { setSelectedStaff(staff); navigate(`/hr/edit/${staff.id}`); }} 
+                        onAdd={() => { setSelectedStaff(null); navigate('/hr/create'); }}
+                        onManagePermissions={(staff) => { setSelectedStaff(staff); }}
+                        selectedStaffForPermissions={selectedStaff} 
+                        onClosePermissions={() => setSelectedStaff(null)}
+                        user={user}
+                      />
+                    } />
+                    <Route path="/hr/create" element={
+                      <StaffForm 
+                        departments={departments} 
+                        staffId={null} 
+                        onBack={() => navigate('/hr')} 
+                        onSuccess={() => navigate('/hr')} 
+                      />
+                    } />
+                    <Route path="/hr/edit/:id" element={<StaffFormWrapper departments={departments} onBack={() => navigate('/hr')} onSuccess={() => navigate('/hr')} />} />
+                    <Route path="/departments" element={<DepartmentManager />} />
+                    <Route path="/permissions" element={<SystemPermissionManager />} />
+                    <Route path="/tasks" element={
+                      <TaskManager 
+                        viewMode="all" 
+                        departments={departments}
+                        onCreateNew={() => { setEditingTask(null); setShowTaskForm(true); }}
+                        onViewDetails={(id) => navigate(`/tasks/${id}`)}
+                        onEdit={(task) => { setEditingTask(task); setShowTaskForm(true); }}
+                        user={user}
+                      />
+                    } />
+                    <Route path="/tasks/my" element={
+                      <TaskManager 
+                        viewMode="my" 
+                        departments={departments}
+                        onCreateNew={() => { setEditingTask(null); setShowTaskForm(true); }}
+                        onViewDetails={(id) => navigate(`/tasks/${id}`)}
+                        onEdit={(task) => { setEditingTask(task); setShowTaskForm(true); }}
+                        user={user}
+                      />
+                    } />
+                    <Route path="/tasks/:id" element={<TaskDetailsWrapper user={user} onDeleted={() => navigate('/tasks')} onEdit={(task) => { setEditingTask(task); setShowTaskForm(true); }} onBack={() => navigate(-1)} />} />
+                    <Route path="/chat" element={
+                      <LiveChat 
+                        chats={chats}
+                        selectedChatId={selectedChatId}
+                        onSelectChat={setSelectedChatId}
+                        messages={messages}
+                        onSendMessage={handleSendMessage}
+                        onEndChat={handleEndChat}
+                        onCreateTicket={() => {
+                          const chat = chats.find(c => c.id === selectedChatId);
+                          setTicketSource({ chat });
+                          setShowTicketForm(true);
+                        }}
+                        user={user}
+                      />
+                    } />
+                    <Route path="/tickets" element={<TicketManager onConvertToTask={(ticket) => { setSourceTicket(ticket); setShowTaskForm(true); }} user={user} />} />
+                    <Route path="/support-feed" element={<ContactSupportManager onConvertToTicket={(contact) => { setTicketSource({ contact }); setShowTicketForm(true); }} user={user} />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </main>
+              </div>
+            } />
+          )}
+        </Routes>
       </AnimatePresence>
 
       {/* Global Overlays */}
@@ -358,8 +390,9 @@ const App: React.FC = () => {
           <TaskForm 
             departments={departments}
             editingTask={editingTask}
-            onClose={() => { setShowTaskForm(false); setEditingTask(null); }}
-            onSuccess={() => { setShowTaskForm(false); setEditingTask(null); }}
+            sourceTicket={sourceTicket}
+            onClose={() => { setShowTaskForm(false); setEditingTask(null); setSourceTicket(null); }}
+            onSuccess={() => { setShowTaskForm(false); setEditingTask(null); setSourceTicket(null); }}
           />
         )}
         {showTicketForm && ticketSource && (
@@ -372,6 +405,24 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
     </>
+  );
+};
+
+const StaffFormWrapper: React.FC<{ departments: Department[], onBack: () => void, onSuccess: () => void }> = ({ departments, onBack, onSuccess }) => {
+  const { id } = useParams();
+  return <StaffForm departments={departments} staffId={id || null} onBack={onBack} onSuccess={onSuccess} />;
+};
+
+const TaskDetailsWrapper: React.FC<{ user: any, onDeleted: () => void, onEdit: (task: any) => void, onBack: () => void }> = ({ user, onDeleted, onEdit, onBack }) => {
+  const { id } = useParams();
+  return <TaskDetails taskId={id!} onBack={onBack} onDeleted={onDeleted} onEdit={onEdit} user={user} />;
+};
+
+const App: React.FC = () => {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 };
 

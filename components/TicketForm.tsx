@@ -5,7 +5,7 @@ import { X, Save, Loader2, AlertCircle, Type, AlignLeft, Flag, Ticket, Info, Tag
 import { toast } from 'react-toastify';
 import { Input, Select } from './UI';
 import { convertContactToTicket } from '../services/contactService';
-import { superadminurl } from '@/services/api';
+import { superadminurl } from '@/api';
 
 interface TicketFormProps {
   chat?: {

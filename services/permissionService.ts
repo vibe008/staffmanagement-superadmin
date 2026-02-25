@@ -1,6 +1,6 @@
 
 import { SystemPermission, ApiResponse, PermissionGroupResponse } from '../types';
-import { superadminurl } from './api';
+import { superadminurl } from '../api';
 
 // const BASE_URL = 'https://superadmin-532d.onrender.com/api/permission';
 const BASE_URL = `${superadminurl}/api/permission`;

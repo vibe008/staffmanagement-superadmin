@@ -1,6 +1,6 @@
 
 import { ContactSupport } from '../types';
-import { superadminurl } from './api';
+import { superadminurl } from '../api';
 
 const API_BASE = `${superadminurl}/api`;
 const TICKET_BASE_URL = `${superadminurl}/api/ticket`;

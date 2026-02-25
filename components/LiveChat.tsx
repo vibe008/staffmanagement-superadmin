@@ -10,7 +10,7 @@ import {
 import { toast } from 'react-toastify';
 import { socketService } from '../socket';
 import { ChatMessage, MessageType } from '../types';
-import { chaturl } from '@/services/api';
+import { chaturl } from '../api';
 
 interface Chat {
   id: string;

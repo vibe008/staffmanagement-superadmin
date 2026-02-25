@@ -1,6 +1,6 @@
 
 import { io, Socket } from 'socket.io-client';
-import { chaturl } from './services/api';
+import { chaturl } from './api';
 
 const CHAT_URL = chaturl;
 

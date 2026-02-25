@@ -1,6 +1,6 @@
 // services/departmentService.ts
 import { Department, SubDepartment, Designation, ApiResponse } from '../types';
-import { superadminurl } from './api';
+import { superadminurl } from '../api';
 
 
 const BASE_URL = `${superadminurl}/api/department`;
